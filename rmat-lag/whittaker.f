@@ -1,6 +1,4 @@
-      module whittaker
-      
-      contains
+
 CCCCCCC
       SUBROUTINE WHIT(HETA,R,XK,E,LL,F,FD,IE)
 C
@@ -125,7 +123,3 @@ c      FD(1)=A*FD(1)
    65 CONTINUE
       RETURN
       END SUBROUTINE
-      
-      
-      
-      end module

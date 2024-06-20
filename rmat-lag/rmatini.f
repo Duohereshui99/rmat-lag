@@ -1,10 +1,7 @@
 ccccccc
         module rmatmod
-                use algorithm
-                use basis
                 use parameter
                 use channels
-                use whittaker
                 use matinv
                 use coulfunc
                 use deltaf
@@ -21,7 +18,7 @@ ccccccc
         subroutine rmat_int()
                 implicit none
 ccccccc
-                integer::i,j,k,l             
+                integer::i,k             
 ccccccc
                 if(allocated(WTK)) deallocate(WTK)
                 if(allocated(WTKP)) deallocate(WTKP)
@@ -73,10 +70,10 @@ ccccccc
 !this subroutine gives the potential
         subroutine getpot(str)
             implicit none
-            integer::i,j,k
+            integer::i
             character(len=*)::str
 ccccccc
-            real*8::xx,zz,vcen,vtens,vls,hm,rmu
+            real*8::xx,zz,vcen,vtens,vls
 ccccccc
         if(allocated(Vc)) deallocate(Vc)
         allocate(Vc(1:nr,1:beta%nchmax,1:beta%nchmax))    
@@ -87,8 +84,6 @@ ccccccc
 !!(only for 2 channels l=0,2)
             case('t') 
 c Reid neutron-proton potential (T=1, soft core)
-        rmu=mu/amu
-        hm=20.736d0/rmu
         do i=1,nr
             xx=0.7d0*xle(i)*rmax
             zz=exp(-xx)
@@ -100,7 +95,6 @@ c Reid neutron-proton potential (T=1, soft core)
             Vc(i,2,1)=Vc(i,1,2)
             Vc(i,2,2)=vcen-2*(beta%j_tot+2)*vtens/(2*beta%j_tot+1)-(beta%j_tot+2)*vls
         end do
-         !   Vc=Vc/hm
         end select
         end subroutine
 
@@ -110,7 +104,7 @@ ccccccc
 ccccccc
         implicit none
         integer::i,j,mm,nn !sum variables
-        integer::li,lj       !lc(i),lc(j)
+        integer::li,lj     !lc(i),lc(j)
 ccccccc
         do mm=1,nr
             do i=1,beta%nchmax
@@ -126,6 +120,7 @@ ccccccc coupled potential matrix elements Vcouple_{im,jn}
             end do
         end do
 ccccccc
+!T+L(B), kinetic energy and Bloch term
         do mm=1,nr 
             do nn=1,nr
                 do i=1,beta%nchmax
@@ -139,7 +134,7 @@ ccccccc
                 end do
             end do
         end do
-!then we add the several matrix elements together to get Cmatrix before the reconstruction
+!then we add the several matrix elements together to get Cmatrix (without centrifugal term)
         do mm=1,nr
             do nn=1,nr
                 do i=1,beta%nchmax
@@ -153,6 +148,7 @@ ccccccc
                 end do
             end do
         end do     
+!centrifugal term added to Cmatrix, now Cmatrix is complete
         do i=1,beta%nchmax
             do mm=1,nr
                 Cmat(mm,mm,i,i)=Cmat(mm,mm,i,i)+hbarc**2/2d0/mu*lc(i)*(lc(i)+1d0)/xle(mm)**2/rmax**2
@@ -171,12 +167,7 @@ ccccccc
             end do
         end do
 !get the inversion of Cmatrix, and the inversion is stored just in C.
-        do i=1,nr*beta%nchmax
-            write(22,*) real(C(i,:))
-        end do
-
         call mat_inv(C,nr*beta%nchmax,nr*beta%nchmax)
-
 !Rmatrix , R_{ij}=hbar^2/(2mu a)*\sum_{mn}φ_n(a)(C^{-1})_{in,jm}φ_m(a)
         do i=1,beta%nchmax
             do j=1,beta%nchmax

@@ -19,8 +19,8 @@ LIBS = -llapack
 # 定义目标文件
 TARGET = rmat
 # 定义源文件
-SOURCES = variable.f potential.f algorithm.f deltafunc.f coulfunc.f zgetrf.f \
-whittaker.f basis.f channels.f rmatini.f input.f rmat.f
+SOURCES = variable.f potential.f legzo.f deltafunc.f coulfunc.f zgetrf.f \
+whittaker.f channels.f rmatini.f input.f rmat.f
 # 将源文件转换为对象文件
 OBJECTS = $(SOURCES:.f=.o)
 
