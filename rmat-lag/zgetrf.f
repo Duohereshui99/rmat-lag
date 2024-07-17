@@ -1,12 +1,8 @@
 ccccccc 
-!this module is used to calculate the inverse of a matrix
+!this subroutine is used to calculate the inverse of a matrix
 !with the subroutine of zgetrf and zgetri
 !which comes from the lapack library
 !for an arbitrary complex square matrix
-        module matinv
-            implicit none
-
-        contains
 ccccccc
             subroutine mat_inv(a,lda,n)
             integer::n,lda,info,lwork
@@ -35,5 +31,3 @@ ccccccc
             deallocate(work,ipiv)
 ccccccc
             end subroutine mat_inv
-
-        end module

@@ -4,19 +4,23 @@
 #------------------------------------------------------------------#
 
 &channelbeta    beta%Pi_tot=1d0   beta%j_tot=1d0      
-                beta%Pi_d=1d0     beta%jd=0.5d0       beta%Ed=0d0               
-                beta%Pi_alpha=1d0 beta%j_alpha=0.5d0   /
+                beta%Pi_d=1d0     beta%jd=0d0       beta%Ed=0d0               
+                beta%Pi_alpha=1d0 beta%j_alpha=0d0   /
 
 
-&meshs       nr=60       rmax=7d0         /
+&meshs       nr=80       rmax=20d0         /
 
 
 
-&systems    E=12d0    mass1=1d0    mass2=1d0     
-            z1=1d0    z2=0d0                           /
+&systems    E=7.329d0    mass_d=240d0    mass_alpha=4d0     
+            z_d=96d0     z_alpha=2d0                           /
 
 
-&potentials str='t' v0=-72.15d0   r0=0d0  a=1.484d0           /
+&potentials str='c'          /
+
+
+&deformation beta_2=0.224   beta_4=0.087   v_0=-600d0/
+
 
 
 

@@ -2,7 +2,6 @@ ccccccc
         module rmatmod
                 use parameter
                 use channels
-                use matinv
                 use coulfunc
                 use deltaf
                 use coulvar
@@ -12,6 +11,8 @@ ccccccc
                 use system
                 use potential
                 use potvar
+                use clebsg
+                use deform
                 implicit none
         contains
 ccccccc
@@ -35,6 +36,10 @@ ccccccc
                 if(allocated(Z_O)) deallocate(Z_O)
                 if(allocated(Z_I)) deallocate(Z_I)
                 if(allocated(Smat)) deallocate(Smat)
+                if(allocated(uij)) deallocate(uij)
+                if(allocated(Gamma)) deallocate(Gamma)
+ccccccc
+                if(allocated(O)) deallocate(O)
 ccccccc
                 allocate(WTK(1:beta%nchmax+1),WTKP(1:beta%nchmax+1))
                 allocate(xle(1:nr),wle(1:nr))
@@ -47,6 +52,10 @@ ccccccc
                 allocate(C(1:nr*beta%nchmax,1:nr*beta%nchmax))
                 allocate(Rmat(1:beta%nchmax,1:beta%nchmax),Smat(1:beta%nchmax,1:beta%nchmax))
                 allocate(Z_O(1:beta%nchmax,1:beta%nchmax),Z_I(1:beta%nchmax,1:beta%nchmax))
+                allocate(uij(1:beta%nchmax,1:beta%nchmax))
+                allocate(Gamma(1:beta%nchmax))
+ccccccc
+                allocate(O(1:beta%nchmax,1:beta%nchmax))
 ccccccc
                 call LEGZO(nr,xle,wle)
 ccccccc
@@ -59,7 +68,7 @@ ccccccc
                                 B_i(i)=0d0
                         else
                         ki=sqrt(2d0*mu*abs(E-Ec(i))/hbarc**2)
-                        eta=z1*z2*e2*mu/hbarc**2/ki
+                        eta=z_d*z_alpha*e2*mu/hbarc**2/ki
                         call WHIT(eta,rmax,ki,E,int(lc(i),4),WTK,WTKP,0)
                         B_i(i)=2*ki*rmax*WTKP(i)/WTK(i)
                       end if
@@ -70,13 +79,25 @@ ccccccc
 !this subroutine gives the potential
         subroutine getpot(str)
             implicit none
-            integer::i
+            integer::i,j,k,info,lwork,s
             character(len=*)::str
 ccccccc
             real*8::xx,zz,vcen,vtens,vls
+            real*8,allocatable::wr(:),wi(:),vr(:,:),work(:)
 ccccccc
         if(allocated(Vc)) deallocate(Vc)
-        allocate(Vc(1:nr,1:beta%nchmax,1:beta%nchmax))    
+        if(allocated(VijN)) deallocate(VijN)
+        if(allocated(VijC)) deallocate(VijC)
+        if(allocated(wr)) deallocate(wr)
+        if(allocated(wi)) deallocate(wi)
+        if(allocated(vr)) deallocate(vr)
+        if(allocated(work)) deallocate(work)
+ccccccc
+        allocate(Vc(1:nr,1:beta%nchmax,1:beta%nchmax))
+        allocate(VijN(1:nr,1:beta%nchmax,1:beta%nchmax))
+        allocate(VijC(1:nr,1:beta%nchmax,1:beta%nchmax))   
+        allocate(wr(1:beta%nchmax),wi(1:beta%nchmax))
+        allocate(vr(1:beta%nchmax,1:beta%nchmax),work(1:3*beta%nchmax))
 ccccccc
         select case(str)
 ccccccc
@@ -95,7 +116,96 @@ c Reid neutron-proton potential (T=1, soft core)
             Vc(i,2,1)=Vc(i,1,2)
             Vc(i,2,2)=vcen-2*(beta%j_tot+2)*vtens/(2*beta%j_tot+1)-(beta%j_tot+2)*vls
         end do
+ccccccc
+!!coupled channel
+!4th order deformation term and 16th order deformation term
+!\sum_{l=2,4}\sqrt{\frac{(2l+1)(2I+1)}{4\pi(2J+1)}}\beta_{l}R_{d}\times[\bra{I,0,l,0}\ket{J,0}]^2
+!even-even case: I=2(i-1),J=2(j-1)
+        case('c')
+            call factorialgen(1000) 
+ccccccc
+            do i=1,beta%nchmax
+                do j=1,beta%nchmax
+                    O(i,j)=sqrt((2d0*2+1d0)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*beta_2*R_d*cleb(2*(2*i-2),0,2*2,0,2*(2*j-2),0)**2
+     &          +sqrt((2d0*4+1d0)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*beta_4*R_d*cleb(2*(2*i-2),0,4*2,0,2*(2*j-2),0)**2
+                end do
+            end do
+ccccccc
+            call dgeev('N','V',beta%nchmax,O,beta%nchmax,wr,wi,1,1,vr,beta%nchmax,work,-1,info)
+ccccccc
+            lwork=work(1)
+            deallocate(work)
+            allocate(work(lwork))
+ccccccc
+            call dgeev('N','V',beta%nchmax,O,beta%nchmax,wr,wi,1,1,vr,beta%nchmax,work,lwork,info)
+ccccccc
+            do i=1,beta%nchmax
+                write(*,*) 'wr,wi',wr(i),wi(i)
+            end do
+!V_{ij}^{N}(r)
+            do i=1,beta%nchmax
+                do j=1,beta%nchmax
+                    do k=1,nr
+                        do s=1,beta%nchmax
+                        VijN(k,i,j)=VijN(k,i,j) + vr(i,s) * vr(j,s) * WSpot(v_0,aa,r_0,xle(k)*rmax-wr(s))
+                        end do
+                    end do
+                end do
+            end do
+ccccccc
+!V_{ij}^{C}(r), separated into 2 parts: diagonal and off-diagonal of channel index ij
+            do i=1,beta%nchmax
+                do j=1,beta%nchmax
+ccccccc part of diagonal matrix elements, non-deformed term only in diagonal part
+                    if(i==j) then
+                        do k=1,nr
+                            if(xle(k)*rmax<=R_C) then 
+                                VijC(k,i,j) = VijC(k,i,j) + z_alpha*z_d*e2/2d0/R_C*(3d0-(xle(k)*rmax)**2/R_C**2)
+                            else
+                                VijC(k,i,j) = VijC(k,i,j) + z_alpha*z_d*e2/xle(k)/rmax
+                            end if
+                        end do
+                    end if
+ccccccc
+!for coulomb case , deformation l=2,4, and deformed coulomb part in both diagonal and off-diagonal
+ccccccc
+                    do k=1,nr
+                        if(xle(k)*rmax<=R_C) then 
+                    VijC(k,i,j)=VijC(k,i,j)+3d0*z_alpha*z_d*e2/(2d0*2+1)*(xle(k)*rmax)**2*R_C**(-3d0)
+     &             *beta_2*sqrt((2d0*2+1)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*cleb(2*(2*i-2),0,2*2,0,2*(2*j-2),0)**2 
+     &             +3d0*z_alpha*z_d*e2/(2d0*4+1)*(xle(k)*rmax)**4*R_C**(-5d0)
+     &             *beta_4*sqrt((2d0*4+1)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*cleb(2*(2*i-2),0,4*2,0,2*(2*j-2),0)**2     
+                    else
+                    VijC(k,i,j)=VijC(k,i,j)+3d0*z_alpha*z_d*e2/(2d0*2+1)*R_C**2d0*(xle(k)*rmax)**(-3d0)
+     &             *beta_2*sqrt((2d0*2+1)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*cleb(2*(2*i-2),0,2*2,0,2*(2*j-2),0)**2
+     &             +3d0*z_alpha*z_d*e2/(2d0*4+1)*R_C**4d0*(xle(k)*rmax)**(-5d0)
+     &             *beta_4*sqrt((2d0*4+1)*(4d0*i-3)/(4d0*pi*(4d0*j-3)))*cleb(2*(2*i-2),0,4*2,0,2*(2*j-2),0)**2               
+                        end if 
+                    end do
+ccccccc
+                end do 
+            end do
+ccccccc
+!V_{ij}(r)=V_{ij}^{C}(r)+V_{ij}^{N}(r)
+            do i=1,beta%nchmax
+                do j=1,beta%nchmax
+                    do k=1,nr
+                        Vc(k,i,j)=VijC(k,i,j)+VijN(k,i,j)
+                    end do
+                end do
+            end do
+ccccccc
+        case('test')
+
+            do i=1,beta%nchmax
+                do k=1,nr
+                    Vc(k,i,i)=testpot(xle(k)*rmax)
+                end do
+            end do
+
+
         end select
+
         end subroutine
 
 
@@ -126,10 +236,12 @@ ccccccc
                 do i=1,beta%nchmax
                     if(mm==nn) then 
                         T(mm,nn,i)=hbarc**2/2/mu/rmax*phia(nn)**2
-     &         *(((4*nr**2+4*nr+3d0)*xle(nn)*(1-xle(nn))-6d0*xle(nn)+1d0)/3d0/xle(nn)/(1-xle(nn))-B_i(i))
+     &         *(((4*nr**2+4*nr+3d0)*xle(nn)*(1-xle(nn))-
+     &            6d0*xle(nn)+1d0)/3d0/xle(nn)/(1-xle(nn))-B_i(i))
                     else
                         T(mm,nn,i)=hbarc**2/2/mu/rmax
-     &         *phia(mm)*phia(nn)*(nr**2+nr+1d0+(xle(nn)+xle(mm)-2d0*xle(mm)*xle(nn))/(xle(nn)-xle(mm))**2-1d0/(1-xle(nn))-1d0/(1-xle(mm))-B_i(i))        
+     &         *phia(mm)*phia(nn)*(nr**2+nr+1d0+(xle(nn)+xle(mm)-2d0*xle(mm)*xle(nn))/
+     &           (xle(nn)-xle(mm))**2-1d0/(1-xle(nn))-1d0/(1-xle(mm))-B_i(i))        
                     end if
                 end do
             end do
@@ -165,7 +277,7 @@ ccccccc
                     end do
                 end do
             end do
-        end do
+        end do    
 !get the inversion of Cmatrix, and the inversion is stored just in C.
         call mat_inv(C,nr*beta%nchmax,nr*beta%nchmax)
 !Rmatrix , R_{ij}=hbar^2/(2mu a)*\sum_{mn}φ_n(a)(C^{-1})_{in,jm}φ_m(a)
@@ -194,8 +306,8 @@ ccccccc
                 allocate(FC_i(0:li),GC_i(0:li),FCP_i(0:li),GCP_i(0:li))
                 allocate(FC_j(0:lj),GC_j(0:lj),FCP_j(0:lj),GCP_j(0:lj))
 ccccccc
-                call COUL90(k_i*rmax,z1*z2*e2*mu/hbarc**2/k_i,0d0,li,FC_i,GC_i,FCP_i,GCP_i,KFN,IFAIL)
-                call COUL90(k_j*rmax,z1*z2*e2*mu/hbarc**2/k_j,0d0,lj,FC_j,GC_j,FCP_j,GCP_j,KFN,IFAIL)
+                call COUL90(k_i*rmax,z_d*z_alpha*e2*mu/hbarc**2/k_i,0d0,li,FC_i,GC_i,FCP_i,GCP_i,KFN,IFAIL)
+                call COUL90(k_j*rmax,z_d*z_alpha*e2*mu/hbarc**2/k_j,0d0,lj,FC_j,GC_j,FCP_j,GCP_j,KFN,IFAIL)
 ccccccc H^{+}=G+iF, H^{-}=G-iF, and their derivatives
                 hlp_i=cmplx(GC_i(li),FC_i(li),kind=8)
                 hln_i=cmplx(GC_i(li),-FC_i(li),kind=8)
@@ -217,7 +329,46 @@ ccccccc
 ! Smatrix: S=(Z_O)^{-1}Z_I,first we get the inverse of Z_O
                 call mat_inv(Z_O,beta%nchmax,beta%nchmax)
                 Smat=matmul(Z_O,Z_I)
+!this loop give uij: to give channel wf value at the boundary  u_{ij}(R=rmax)
 ccccccc
+                do i=1,beta%nchmax
+                    do j=1,beta%nchmax
+                        k_i=sqrt(2d0*mu*abs(Ec(i)-E)/hbarc**2)
+ccccccc
+                        li=int(lc(i),4)
+ccccccc
+                        allocate(FC_i(0:li),GC_i(0:li),FCP_i(0:li),GCP_i(0:li))
+ccccccc
+                        call COUL90(k_i*rmax,z_d*z_alpha*e2*mu/hbarc**2/k_i,0d0,li,FC_i,GC_i,FCP_i,GCP_i,KFN,IFAIL)
+ccccccc H^{+}=G+iF, H^{-}=G-iF, only give H_i^{+} and H_i^{-}, i channel is enough                       
+                        hlp_i=cmplx(GC_i(li),FC_i(li),kind=8)
+                        hln_i=cmplx(GC_i(li),-FC_i(li),kind=8)
+ccccccc
+                    uij(i,j)=(hln_i*delta(i,j)-Smat(i,j)*hlp_i)*(0d0,1d0)/2d0
+ccccccc
+                        deallocate(FC_i,GC_i,FCP_i,GCP_i)
+                    end do
+                end do
+ccccccc
+! give the (partial) widths , S(1,i) contributes to the ith channel
+! here Gamma has the unit of MeV
+                do i=1,beta%nchmax
+                    li=int(lc(i),4)
+                    k_i=sqrt(2d0*mu*abs(Ec(i)-E)/hbarc**2)
+ccccccc
+                    allocate(FC_i(0:li),GC_i(0:li),FCP_i(0:li),GCP_i(0:li))
+                    call COUL90(k_i*rmax,z_d*z_alpha*e2*mu/hbarc**2/k_i,0d0,li,FC_i,GC_i,FCP_i,GCP_i,KFN,IFAIL)
+ccccccc
+                    Gamma(i)=hbarc**2d0*k_i/mu * abs(uij(1,i))**2/(GC_i(li)**2+FC_i(li)**2)
+ccccccc
+                    deallocate(FC_i,GC_i,FCP_i,GCP_i)
+                end do 
+ccccccc
+                write(*,*) 'Gamma:',Gamma,'MeV'
+
+
+
+
                 write(*,*) 'Smatrix:'
                 do i=1,beta%nchmax
                     write(*,*) Smat(i,:)
@@ -228,7 +379,7 @@ ccccccc
                 end do
                 write(*,*) 'the phase of S'
                 do i=1,beta%nchmax
-                        write(*,*) atan2(aimag(Smat(i,:)),real(Smat(i,:)))/2
+                    write(*,*) atan2(aimag(Smat(i,:)),real(Smat(i,:)))/2
                 end do
 
         end subroutine

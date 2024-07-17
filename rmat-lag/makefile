@@ -11,7 +11,7 @@ COMPDATE := $(shell date '+%Y-%m-%d %H:%M:%S' | tr -d '\n')
 FFLAGS = -O3 -Wall -Wextra -ffixed-line-length-0 -cpp -g \
 -DBASE='"$(BASE)"' -DVERDATE='"$(VERDATE)"' -DVERREV='"$(VERREV)"' -DCOMPDATE='"$(COMPDATE)"'
 
-LDFLAGS = -llapack 
+#LDFLAGS = -llapack 
 #LDFLAGS = -llapack -lgsl
 # 定义需要链接的库
 LIBS = -llapack 
@@ -19,7 +19,7 @@ LIBS = -llapack
 # 定义目标文件
 TARGET = rmat
 # 定义源文件
-SOURCES = variable.f potential.f legzo.f deltafunc.f coulfunc.f zgetrf.f \
+SOURCES = variable.f potential.f clebsg.f legzo.f deltafunc.f coulfunc.f zgetrf.f \
 whittaker.f channels.f rmatini.f input.f rmat.f
 # 将源文件转换为对象文件
 OBJECTS = $(SOURCES:.f=.o)

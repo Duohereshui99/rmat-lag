@@ -51,10 +51,12 @@ ccccccc
 ccccccc         
         beta%nchmax=0
 ccccccc       
-        beta%lmin=min(nint(abs(beta%j_tot-abs(beta%jd-beta%j_alpha))),nint(beta%j_tot+abs(beta%jd-beta%j_alpha))
-     &   ,nint(abs(beta%j_tot-(beta%jd+beta%j_alpha))),nint(beta%j_tot+beta%jd+beta%j_alpha))
-        beta%lmax=max(nint(abs(beta%j_tot-abs(beta%jd-beta%j_alpha))),nint(beta%j_tot+abs(beta%jd-beta%j_alpha))
-     &   ,nint(abs(beta%j_tot-(beta%jd+beta%j_alpha))),nint(beta%j_tot+beta%jd+beta%j_alpha))
+!         beta%lmin=min(nint(abs(beta%j_tot-abs(beta%jd-beta%j_alpha))),nint(beta%j_tot+abs(beta%jd-beta%j_alpha))
+!      &   ,nint(abs(beta%j_tot-(beta%jd+beta%j_alpha))),nint(beta%j_tot+beta%jd+beta%j_alpha))
+!         beta%lmax=max(nint(abs(beta%j_tot-abs(beta%jd-beta%j_alpha))),nint(beta%j_tot+abs(beta%jd-beta%j_alpha))
+!      &   ,nint(abs(beta%j_tot-(beta%jd+beta%j_alpha))),nint(beta%j_tot+beta%jd+beta%j_alpha))
+        beta%lmin=0d0
+        beta%lmax=6d0
 ccccccc
         do l=beta%lmin,beta%lmax
              if(abs((-1d0)**l*beta%Pi_alpha*beta%Pi_d-beta%Pi_tot)<tol) then 
@@ -84,6 +86,9 @@ ccccccc
                 beta%nch=beta%nch+1
              end if
         end do
+        Ec(1)=0; Ec(2)=0.005d0; Ec(3)=0.126d0; Ec(4)=0.266d0
+ccccccc
+        write(*,*) lc
 ccccccc
         end subroutine getchannelalphaD
 

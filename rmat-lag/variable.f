@@ -2,6 +2,8 @@
         implicit none
 ccccccc
         complex*16,allocatable::Cmat(:,:,:,:)
+        complex*16,allocatable::VijN(:,:,:) !nuclear pot part
+        complex*16,allocatable::VijC(:,:,:) !coulomb pot part
         complex*16,allocatable::Vc(:,:,:)
         complex*16,allocatable::Vcouple(:,:,:,:)
         complex*16,allocatable::T(:,:,:)
@@ -12,7 +14,9 @@ ccccccc
         complex*16,allocatable::Z_O(:,:)
         complex*16,allocatable::Z_I(:,:)
         complex*16,allocatable::Smat(:,:)
-        end module
+        complex*16,allocatable::uij(:,:) !wf at boundary point u_{ij}(R=a)
+        real*8,allocatable::Gamma(:)     !width
+        end module      
 ccccccc
         module mesh 
             implicit none
@@ -25,13 +29,24 @@ ccccccc
 !2b sysmtem variables
         module system
             implicit none
-            real*8::mass1
-            real*8::mass2
+            real*8::mass_d      !daughter nucleus mass
+            real*8::mass_alpha   !alpha mass
             real*8::mu
-            real*8::z1
-            real*8::z2
+            real*8::z_d
+            real*8::z_alpha
             real*8::z12
+            real*8::I_d         !degree of asymmetry of daughter nucleus
+            real*8::R_d         !radius of daughter nucleus 
+            real*8::R_C         !charge radius of d
         end module
+ccccccc
+        module deform
+            implicit none
+            real*8,allocatable::O(:,:)          !deformation operator matrix element under channel states
+            real*8::beta_2 !4th order deformation parameter
+            real*8::beta_4 !16th order deformation parameter
+        end module
+ccccccc
 !COUL90's variables
         module coulvar
         implicit none
@@ -59,7 +74,9 @@ ccccccc
         module potvar
         implicit none
         character(len=20)::str
-        real*8::v0,r0,a
+        !coupling potential parameter
+        real*8::aa      !decay rate of the WS potential
+        real*8::r_0,v_0    !WSpot parameter
         end module 
 ccccccc
         module parameter
