@@ -145,9 +145,6 @@ ccccccc
 ccccccc
             call dgeev('N','V',beta%nchmax,O,beta%nchmax,wr,wi,1,1,vr,beta%nchmax,work,lwork,info)
 ccccccc
-            do i=1,beta%nchmax
-                write(*,*) 'wr,wi',wr(i),wi(i)
-            end do
 !V_{ij}^{N}(r)
             do i=1,beta%nchmax
                 do j=1,beta%nchmax
@@ -377,13 +374,13 @@ ccccccc
                 do i=1,beta%nchmax
                     do j=1,beta%nchmax
                         do nn=1,nr
-                           wf_int(nn,i,j)=(rmax*xle(nn))**(-0.5d0)*f(nn,i,j)
+                           wf_int(nn,i,j)=(rmax*wle(nn))**(-0.5d0)*f(nn,i,j)
                         end do
                     end do
                 end do
 ccccccc
                 do nn=1,nr
-                    write(444,*) xle(nn)*rmax,real(wf_int(nn,1,2))
+                    write(444,*) xle(nn)*rmax,real(wf_int(nn,1,1))
                 end do
 
 
@@ -402,10 +399,6 @@ ccccccc
                     deallocate(FC_i,GC_i,FCP_i,GCP_i)
                 end do 
 ccccccc
-                write(*,*) 'Gamma:',Gamma,'MeV'
-
-
-
 
                 write(*,*) 'Smatrix:'
                 do i=1,beta%nchmax
@@ -414,10 +407,6 @@ ccccccc
                 write(*,*) 'the module of S'
                 do i=1,beta%nchmax
                     write(*,*) abs(Smat(i,:))
-                end do
-                write(*,*) 'the phase of S'
-                do i=1,beta%nchmax
-                    write(*,*) atan2(aimag(Smat(i,:)),real(Smat(i,:)))/2
                 end do
 
         end subroutine
