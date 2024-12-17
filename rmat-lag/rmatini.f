@@ -408,7 +408,8 @@ ccccccc
                 do i=1,beta%nchmax
                     write(*,*) abs(Smat(i,:))
                 end do
-
+ccccccc
+            deallocate(Vc)
         end subroutine
 ccccccc
 
